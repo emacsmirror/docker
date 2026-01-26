@@ -42,12 +42,21 @@
   :group 'docker
   :type 'boolean)
 
-(defcustom docker-run-async-with-buffer-function (if (featurep 'vterm)
-                                                     'docker-run-async-with-buffer-vterm
-                                                   'docker-run-async-with-buffer-shell)
-  "Function used to run a program with a live buffer attached to it."
+(defcustom docker-terminal-backend 'auto
+  "Terminal backend used for commands that need a live buffer.
+When set to `auto', prefer eat, then vterm, then shell."
+  :group 'docker
+  :type '(choice (const :tag "Auto (eat > vterm > shell)" auto)
+                 (const :tag "Eat" eat)
+                 (const :tag "Vterm" vterm)
+                 (const :tag "Shell" shell)))
+
+(defcustom docker-run-async-with-buffer-function nil
+  "Obsolete; use `docker-terminal-backend' instead."
   :group 'docker
   :type 'symbol)
+
+(make-obsolete-variable 'docker-run-async-with-buffer-function 'docker-terminal-backend "2.5.0")
 
 
 (defmacro docker-with-sudo (&rest body)
@@ -77,7 +86,40 @@
 (defun docker-run-async-with-buffer (program &optional readonly &rest args)
   "Execute \"PROGRAM ARGS\" and display output in a new buffer.
 If READONLY is non-nil, use a read-only buffer with ANSI color support."
-   (apply docker-run-async-with-buffer-function program readonly args))
+  (if docker-run-async-with-buffer-function
+      (apply docker-run-async-with-buffer-function program readonly args)
+    (apply #'docker-run-async-with-buffer-dispatch
+           (docker--terminal-backend)
+           program readonly args)))
+
+(defun docker--terminal-backend-available-p (backend)
+  "Return non-nil when BACKEND is available."
+  (pcase backend
+    ('eat (fboundp 'eat-other-window))
+    ('vterm (fboundp 'vterm-other-window))
+    ('shell t)
+    (_ nil)))
+
+(defun docker--terminal-backend ()
+  "Return the selected backend symbol."
+  (pcase docker-terminal-backend
+    ('auto (cond
+            ((docker--terminal-backend-available-p 'eat) 'eat)
+            ((docker--terminal-backend-available-p 'vterm) 'vterm)
+            (t 'shell)))
+    (_ docker-terminal-backend)))
+
+(defun docker-run-async-with-buffer-dispatch (backend program &optional readonly &rest args)
+  "Dispatch PROGRAM to BACKEND and display output in a new buffer."
+  (pcase backend
+    ('eat (if (docker--terminal-backend-available-p 'eat)
+              (apply #'docker-run-async-with-buffer-eat program readonly args)
+            (error "The eat package is not installed")))
+    ('vterm (if (docker--terminal-backend-available-p 'vterm)
+                (apply #'docker-run-async-with-buffer-vterm program readonly args)
+              (error "The vterm package is not installed")))
+    ('shell (apply #'docker-run-async-with-buffer-shell program readonly args))
+    (_ (error "Unsupported docker terminal backend: %s" backend))))
 
 (defun docker-run-async-with-buffer-shell (program &optional readonly &rest args)
   "Execute \"PROGRAM ARGS\" and display output in a new buffer.

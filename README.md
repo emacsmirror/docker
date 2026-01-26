@@ -90,7 +90,7 @@ Here is a list of other customizations you can set:
 | docker-network-default-sort-key       | Sort key for networks                      | `("Name")`           |
 | docker-pop-to-buffer-action           | Action for `docker-utils-pop-to-buffer`    | `nil`                |
 | docker-run-as-root                    | Runs docker as root when enabled           | `nil`                |
-| docker-run-async-with-buffer-function | Function used to run programs with buffers | Too complex to show  |
+| docker-terminal-backend               | Terminal backend for live buffers          | `auto`               |
 | docker-show-messages                  | If non-nil message docker commands         | `t`                  |
 | docker-show-status                    | When to compute status                     | `local-only`         |
 | docker-volume-columns                 | Columns definition for volumes             | Too complex to show  |
@@ -109,10 +109,11 @@ You can match on the repository name for an image to customize the initial infix
 So when `docker run` is called on an image whose repository name matches the regular expression `^postgres`, the option
 `"-e POSTGRES_PASSWORD=postgres"` will appear as set along with the defaults specified by `docker-image-run-default-args`.
 
-## Vterm support
+## Terminal support
 
-If [vterm](https://github.com/akermu/emacs-libvterm) is installed, it'll be used for any commands that needs a running
-buffer (for example `docker run`, `docker logs`, etc).
+Commands that need a running buffer (for example `docker run`, `docker logs`, etc) use the backend selected by
+`docker-terminal-backend`. When set to `auto`, it prefers [eat](https://codeberg.org/akib/emacs-eat),
+then [vterm](https://github.com/akermu/emacs-libvterm), then shell.
 
 ## Contributions
 
