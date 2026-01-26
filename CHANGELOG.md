@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.5.0 (2026-01-26)
+
+- Switch to terminal backend selector.
+- Support eat as terminal backend.
+- Add read-only buffer support for Docker commands.
+- Add streaming logs feature for Docker containers.
+- Add support for `docker history`.
+- Fix docker compose project detection.
+
 ## 2.4.0 (2025-10-28)
 
 - Bump requirements to Emacs 28.1 because of transient.

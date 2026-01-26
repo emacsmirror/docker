@@ -1,5 +1,5 @@
 (package "docker"
-  "2.4.0"
+  "2.5.0"
   "Interface to Docker")
 
 (website-url "https://github.com/Silex/docker.el")
