@@ -110,6 +110,20 @@ If READONLY is non-nil, fall back to shell mode since vterm is interactive."
            (apply #'docker-utils-generate-new-buffer-name program process-args)))
       (error "The vterm package is not installed"))))
 
+(defun docker-run-async-with-buffer-eat (program &optional readonly &rest args)
+  "Execute \"PROGRAM ARGS\" and display output in a new `eat' buffer.
+If READONLY is non-nil, fall back to shell mode since eat is interactive."
+  (if readonly
+      (apply #'docker-run-async-with-buffer-shell program readonly args)
+    (defvar eat-buffer-name)
+    (if (fboundp 'eat-other-window)
+        (let* ((process-args (-remove 's-blank? (-flatten args)))
+               (command (s-join " " (-insert-at 0 program process-args)))
+               (eat-buffer-name (apply #'docker-utils-generate-new-buffer-name
+                                       program process-args)))
+          (eat-other-window command))
+      (error "The eat package is not installed"))))
+
 (defun docker-process-filter-readonly (proc string)
   "Process filter for read-only streaming buffers.
 Strips carriage returns and applies ANSI color codes."
