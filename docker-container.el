@@ -432,7 +432,7 @@ default directory set to workdir."
    ("n" "No STDIN" "--no-stdin")
    ("d" "Key sequence for detaching" "--detach-keys " read-string)]
   [:description docker-generic-action-description
-   ("a" "Attach" docker-generic-action-with-buffer-stream)])
+   ("a" "Attach" docker-generic-action-with-buffer-interactive)])
 
 (docker-utils-transient-define-prefix docker-container-cp ()
   "Transient for copying files from/to containers."
@@ -467,7 +467,7 @@ ACTION is the docker action, ARGS are the transient arguments."
   (interactive (list (docker-get-transient-action)
                      (transient-args transient-current-command)))
   (if (member "-f" args)
-      (docker-generic-action-with-buffer-stream action args t)
+      (docker-generic-action-with-buffer-noninteractive action args)
     (aio-wait-for (docker-generic-action-with-buffer action args))))
 
 (docker-utils-transient-define-prefix docker-container-logs ()

@@ -266,7 +266,7 @@ The result is the tabulated list id for an entry is propertized with
   (interactive "sCommand: ")
   (docker-utils-ensure-items)
   (--each (docker-utils-get-marked-items-ids)
-    (docker-run-docker-async-with-buffer nil "container" "run" (transient-args 'docker-image-run) it command)))
+    (docker-run-docker-async-with-buffer-interactive "container" "run" (transient-args 'docker-image-run) it command)))
 
 (aio-defun docker-image-tag-selection ()
   "Tag images."

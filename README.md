@@ -115,6 +115,9 @@ Commands that need a running buffer (for example `docker run`, `docker logs`, et
 `docker-terminal-backend`. When set to `auto`, it prefers [eat](https://codeberg.org/akib/emacs-eat),
 then [vterm](https://github.com/akermu/emacs-libvterm), then shell.
 
+Non-interactive streaming buffers (for example `docker logs -f`) always use a shell buffer so output can be
+rendered with ANSI color and kept read-only.
+
 ## Contributions
 
 They are very welcome, either as suggestions or as pull requests by opening tickets

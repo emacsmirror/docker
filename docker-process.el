@@ -83,14 +83,24 @@ When set to `auto', prefer eat, then vterm, then shell."
     (set-process-sentinel process (-partial #'docker-process-sentinel promise))
     promise))
 
-(defun docker-run-async-with-buffer (program &optional readonly &rest args)
+(defun docker-run-async-with-buffer (program interactive &rest args)
   "Execute \"PROGRAM ARGS\" and display output in a new buffer.
-If READONLY is non-nil, use a read-only buffer with ANSI color support."
+INTERACTIVE selects an interactive terminal buffer when non-nil.
+Prefer `docker-run-async-with-buffer-interactive' or
+`docker-run-async-with-buffer-noninteractive'."
   (if docker-run-async-with-buffer-function
-      (apply docker-run-async-with-buffer-function program readonly args)
+      (apply docker-run-async-with-buffer-function program interactive args)
     (apply #'docker-run-async-with-buffer-dispatch
            (docker--terminal-backend)
-           program readonly args)))
+           program interactive args)))
+
+(defun docker-run-async-with-buffer-interactive (program &rest args)
+  "Execute \"PROGRAM ARGS\" and display output in an interactive buffer."
+  (apply #'docker-run-async-with-buffer program t args))
+
+(defun docker-run-async-with-buffer-noninteractive (program &rest args)
+  "Execute \"PROGRAM ARGS\" and display output in a non-interactive buffer."
+  (apply #'docker-run-async-with-buffer program nil args))
 
 (defun docker--terminal-backend-available-p (backend)
   "Return non-nil when BACKEND is available."
@@ -109,39 +119,40 @@ If READONLY is non-nil, use a read-only buffer with ANSI color support."
             (t 'shell)))
     (_ docker-terminal-backend)))
 
-(defun docker-run-async-with-buffer-dispatch (backend program &optional readonly &rest args)
+(defun docker-run-async-with-buffer-dispatch (backend program interactive &rest args)
   "Dispatch PROGRAM to BACKEND and display output in a new buffer."
   (pcase backend
     ('eat (if (docker--terminal-backend-available-p 'eat)
-              (apply #'docker-run-async-with-buffer-eat program readonly args)
+              (apply #'docker-run-async-with-buffer-eat program interactive args)
             (error "The eat package is not installed")))
     ('vterm (if (docker--terminal-backend-available-p 'vterm)
-                (apply #'docker-run-async-with-buffer-vterm program readonly args)
+                (apply #'docker-run-async-with-buffer-vterm program interactive args)
               (error "The vterm package is not installed")))
-    ('shell (apply #'docker-run-async-with-buffer-shell program readonly args))
+    ('shell (apply #'docker-run-async-with-buffer-shell program interactive args))
     (_ (error "Unsupported docker terminal backend: %s" backend))))
 
-(defun docker-run-async-with-buffer-shell (program &optional readonly &rest args)
+(defun docker-run-async-with-buffer-shell (program &optional interactive &rest args)
   "Execute \"PROGRAM ARGS\" and display output in a new buffer.
-If READONLY is non-nil, use a read-only buffer with ANSI color support.
-Otherwise, use a `shell' buffer for interactive use."
+If INTERACTIVE is non-nil, use a `shell' buffer for interactive use.
+Otherwise, use a non-interactive buffer with ANSI color support."
   (let* ((process (apply #'docker-run-start-file-process-shell-command program args))
          (buffer (process-buffer process)))
     (set-process-query-on-exit-flag process nil)
-    (if readonly
-        (with-current-buffer buffer
-          (special-mode)
-          (set-process-filter process 'docker-process-filter-readonly))
-      (with-current-buffer buffer (shell-mode))
-      (set-process-filter process 'comint-output-filter))
+    (if interactive
+        (with-current-buffer buffer (shell-mode))
+      (with-current-buffer buffer (special-mode)))
+    (set-process-filter process
+                        (if interactive
+                            'comint-output-filter
+                          'docker-process-filter-noninteractive))
     (switch-to-buffer-other-window buffer)))
 
-(defun docker-run-async-with-buffer-vterm (program &optional readonly &rest args)
+(defun docker-run-async-with-buffer-vterm (program &optional interactive &rest args)
   "Execute \"PROGRAM ARGS\" and display output in a new `vterm' buffer.
-If READONLY is non-nil, fall back to shell mode since vterm is interactive."
-  (if readonly
-      ;; vterm doesn't support read-only mode, fall back to shell
-      (apply #'docker-run-async-with-buffer-shell program readonly args)
+If INTERACTIVE is nil, fall back to shell mode since vterm is interactive."
+  (if (not interactive)
+      ;; vterm is interactive only, fall back to shell for non-interactive output
+      (apply #'docker-run-async-with-buffer-shell program nil args)
     (defvar vterm-kill-buffer-on-exit)
     (defvar vterm-shell)
     (if (fboundp 'vterm-other-window)
@@ -152,11 +163,11 @@ If READONLY is non-nil, fall back to shell mode since vterm is interactive."
            (apply #'docker-utils-generate-new-buffer-name program process-args)))
       (error "The vterm package is not installed"))))
 
-(defun docker-run-async-with-buffer-eat (program &optional readonly &rest args)
+(defun docker-run-async-with-buffer-eat (program &optional interactive &rest args)
   "Execute \"PROGRAM ARGS\" and display output in a new `eat' buffer.
-If READONLY is non-nil, fall back to shell mode since eat is interactive."
-  (if readonly
-      (apply #'docker-run-async-with-buffer-shell program readonly args)
+If INTERACTIVE is nil, fall back to shell mode since eat is interactive."
+  (if (not interactive)
+      (apply #'docker-run-async-with-buffer-shell program nil args)
     (defvar eat-buffer-name)
     (if (fboundp 'eat-other-window)
         (let* ((process-args (-remove 's-blank? (-flatten args)))
@@ -166,8 +177,8 @@ If READONLY is non-nil, fall back to shell mode since eat is interactive."
           (eat-other-window command))
       (error "The eat package is not installed"))))
 
-(defun docker-process-filter-readonly (proc string)
-  "Process filter for read-only streaming buffers.
+(defun docker-process-filter-noninteractive (proc string)
+  "Process filter for non-interactive streaming buffers.
 Strips carriage returns and applies ANSI color codes."
   (when (buffer-live-p (process-buffer proc))
     (with-current-buffer (process-buffer proc)
