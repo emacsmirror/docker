@@ -49,7 +49,7 @@
 
 (defun docker-compose-run-docker-compose-async-with-buffer (action &rest args)
   "Execute \"`docker-compose-command' ACTION ARGS\" and display output in a new buffer."
-  (apply #'docker-run-async-with-buffer docker-compose-command (docker-compose-arguments) action args))
+  (apply #'docker-run-async-with-buffer docker-compose-command nil (docker-compose-arguments) action args))
 
 (aio-defun docker-compose-services ()
   "Return the list of services."
